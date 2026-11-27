@@ -76,7 +76,7 @@
 // Product catalogue and demo store data.
 const $=id=>document.getElementById(id), money=n=>'NT$'+n.toLocaleString('zh-TW'), icons=()=>window.lucide?.createIcons();
 // Google Apps Script 訂單 API 網址（部署 gas/Code.gs 後取得，結尾為 /exec）。留空 = 示範模式，訂單不會送出。
-const ORDER_API='';
+const ORDER_API='https://script.google.com/macros/s/AKfycbwP-c8KCULxB4EiSsmeK8npP8qagOjYjDSKAdpcF2cfpEAqbevY8gttpUHbP_JuHnH7iA/exec';
 const img=(id,w=850)=>`https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=82`;
 const dum='photo-1563245372-f21724e3856d', steam='photo-1541696432-82c6da8ce7bf', soup='photo-1547592180-85f173990554', tea='photo-1544787219-7f47ccb76574', veg='photo-1512621776951-a57141f2eefd';
 const products=[
