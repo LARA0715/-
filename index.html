@@ -36,6 +36,7 @@
 .street-caption{position:absolute;top:22px;left:0;right:0;text-align:center;font-family:'Noto Serif TC',serif;color:#6b4a35;font-size:clamp(16px,2.2vw,22px);letter-spacing:.12em;z-index:5}
 @media(max-width:767px){.street{height:290px}.street-shop{transform:translateX(-50%) scale(.82);transform-origin:bottom center}.street-city{height:120px}.street-caption{top:16px;padding:0 16px}}
 @media(prefers-reduced-motion:reduce){.walker{transform:translateX(var(--x,40vw))}}
+.street-3d{position:absolute;inset:0;z-index:1}.street-3d canvas{display:block;width:100%;height:100%}.street.is-3d{height:440px}.street.is-3d .street-city,.street.is-3d .street-shop,.street.is-3d .street-walk,.street.is-3d #walkers{display:none}.street-caption{text-shadow:0 1px 0 #fbeedd}@media(max-width:767px){.street.is-3d{height:340px}}
 </style></head>
 <body>
 <!-- Navigation -->
@@ -50,6 +51,7 @@
 <div class="street-shop" aria-hidden="true"><span class="shop-sign">金日煎餃</span><span class="shop-awning"></span><span class="shop-window"></span><span class="shop-door"></span><span class="steam"></span><span class="steam"></span><span class="steam"></span></div>
 <div class="street-walk" aria-hidden="true"></div>
 <div id="walkers" aria-hidden="true"></div>
+<div id="street3d" class="street-3d" aria-hidden="true"></div>
 </section>
 <!-- Story -->
 <section id="story" class="section"><div class="wrap grid md:grid-cols-2 gap-10 lg:gap-20 items-center"><div class="relative"><img class="photo rounded-xl aspect-[5/4]" src="https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1000&q=85" alt="新鮮食材示意" loading="lazy"><div class="absolute bottom-4 left-4 bg-[#faf6ee] px-5 py-4 rounded-md"><span class="eyebrow">OUR PHILOSOPHY</span><p class="serif text-lg mt-1">好食材，不妥協。</p></div></div><div><span class="eyebrow">01 / Our story</span><h2 class="heading">把日常，煎成金黃。</h2><p class="muted">我們相信，真正的美味不必複雜。以台灣在地豬肉、鮮甜蔬菜與每日現擀的麵皮，包進每一份對日常的用心。掌握黃金煎脆比例，讓底部酥脆、內餡鮮嫩，每一口都有溫度。</p><div class="grid grid-cols-3 gap-3 mt-8 border-t border-[#e7ddd0] pt-6"><div><strong class="serif text-2xl sm:text-3xl text-[#ad512e]">10,000+</strong><p class="text-xs muted">每日鍋貼顆數</p></div><div><strong class="serif text-2xl sm:text-3xl text-[#ad512e]">100%</strong><p class="text-xs muted">現點現煎</p></div><div><strong class="serif text-2xl sm:text-3xl text-[#ad512e]">30 年</strong><p class="text-xs muted">手藝傳承</p></div></div><p class="text-[11px] text-[#78695d] mt-3">品牌故事及數據為設計示範。</p></div></div></section>
@@ -118,5 +120,157 @@ const n=window.innerWidth<768?7:12;let html='';
 for(let i=0;i<n;i++){const far=i%2===0,left=Math.random()<.5,d=(far?24:16)+Math.random()*8,s=(far?1:.85)+Math.random()*.2;
 html+=`<div class="walker${far?' far':''}${left?' to-left':''}" style="--w:${far?34:46}px;--b:${far?40:8}px;--d:${d.toFixed(1)}s;--delay:-${(Math.random()*d).toFixed(1)}s;--s:${s.toFixed(2)}s;--x:${(5+i*90/n).toFixed(0)}vw;z-index:${far?1:3}">${person(far)}</div>`}
 box.innerHTML=html})();
+
+</script><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script>
+// 3D street scene (three.js): people stroll past, walk into and out of the shop.
+(function(){
+const sec=document.querySelector('.street'),host=document.getElementById('street3d');
+if(!sec||!host||!window.THREE)return;
+let renderer;
+try{renderer=new THREE.WebGLRenderer({antialias:true});if(!renderer.getContext())return}catch(e){return}
+const T=THREE,reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,small=innerWidth<768;
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);sec.classList.add('is-3d');
+
+const SKY=0xf3dcc0,scene=new T.Scene();scene.background=new T.Color(SKY);scene.fog=new T.Fog(SKY,24,52);
+const camera=new T.PerspectiveCamera(35,1,.1,100);
+scene.add(new T.HemisphereLight(0xfff3e0,0xb08060,.8));
+const sun=new T.DirectionalLight(0xffe2bd,.7);sun.position.set(-8,12,9);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-18,right:18,top:12,bottom:-6,near:1,far:40});sun.shadow.bias=-.0008;scene.add(sun);
+
+const matCache={},mat=c=>matCache[c]||(matCache[c]=new T.MeshLambertMaterial({color:c}));
+const pick=a=>a[Math.floor(Math.random()*a.length)],rand=(a,b)=>a+Math.random()*(b-a);
+function mesh(geo,m,x,y,z,shadow=true){const o=new T.Mesh(geo,m);o.position.set(x,y,z);if(shadow){o.castShadow=true;o.receiveShadow=true}scene.add(o);return o}
+function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');draw(g,w,h);const t=new T.CanvasTexture(c);t.anisotropy=4;t.redraw=()=>{g.clearRect(0,0,w,h);draw(g,w,h);t.needsUpdate=true};return t}
+
+// Ground: sidewalk, curb, road
+const tiles=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#d9b896';g.fillRect(0,0,w,h);g.strokeStyle='#c9a37f';g.lineWidth=3;g.strokeRect(0,0,w,h)});
+tiles.wrapS=tiles.wrapT=T.RepeatWrapping;tiles.repeat.set(40,3);
+const walk=mesh(new T.PlaneGeometry(80,4.4),new T.MeshLambertMaterial({map:tiles}),0,0,2.2,false);walk.rotation.x=-Math.PI/2;walk.receiveShadow=true;
+mesh(new T.BoxGeometry(80,.16,.3),mat(0xc29a76),0,.08,4.45);
+const road=mesh(new T.PlaneGeometry(80,12),mat(0x9a887a),0,-.01,10.6,false);road.rotation.x=-Math.PI/2;road.receiveShadow=true;
+for(let x=-38;x<40;x+=4)mesh(new T.BoxGeometry(2,.02,.15),mat(0xf3e6d4),x,.01,8,false);
+const back=mesh(new T.PlaneGeometry(80,4),mat(0xe8d0b4),0,0,-2,false);back.rotation.x=-Math.PI/2;
+
+// The shop
+const DOOR_X=1.7;
+mesh(new T.BoxGeometry(6,3.6,3),mat(0xfffaf2),0,1.8,-1.5);
+mesh(new T.BoxGeometry(6.1,.3,3.06),mat(0x8f5a3b),0,.15,-1.5);
+mesh(new T.BoxGeometry(6.4,.25,3.3),mat(0x30251e),0,3.72,-1.5);
+const sign=canvasTex(512,112,(g,w,h)=>{g.fillStyle='#30251e';g.fillRect(0,0,w,h);g.fillStyle='#f7d9b6';g.font="700 62px 'Noto Serif TC',serif";g.textAlign='center';g.textBaseline='middle';g.fillText('金 日 煎 餃',w/2,h/2+3)});
+const dark=mat(0x30251e),signM=new T.MeshBasicMaterial({map:sign});
+mesh(new T.BoxGeometry(3.2,.7,.12),[dark,dark,dark,dark,signM,dark],0,3.22,.08);
+document.fonts&&document.fonts.ready.then(()=>{sign.redraw();if(reduce)render()});
+const win=canvasTex(256,150,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#ffe9c7');gr.addColorStop(1,'#f6c486');g.fillStyle=gr;g.fillRect(0,0,w,h);g.fillStyle='#d9a066';g.fillRect(0,h*.72,w,h*.28);g.fillStyle='#fff6e6';for(let i=0;i<5;i++){g.beginPath();g.ellipse(30+i*48,h*.7,16,8,0,0,7);g.fill()}});
+mesh(new T.PlaneGeometry(2.6,1.5),new T.MeshBasicMaterial({map:win}),-1.1,1.45,.02,false);
+const frame=mat(0xc8a78a);
+[[-1.1,2.24,2.8,.1],[-1.1,.66,2.8,.1]].forEach(([x,y,w,h])=>mesh(new T.BoxGeometry(w,h,.1),frame,x,y,.04));
+[-2.45,.25].forEach(x=>mesh(new T.BoxGeometry(.1,1.68,.1),frame,x,1.45,.04));
+mesh(new T.PlaneGeometry(1.2,2.3),new T.MeshBasicMaterial({color:0x4a2c1d}),DOOR_X,1.15,.015,false);
+const dframe=mat(0x6e4129);
+mesh(new T.BoxGeometry(1.4,.12,.14),dframe,DOOR_X,2.36,.05);
+[DOOR_X-.66,DOOR_X+.66].forEach(x=>mesh(new T.BoxGeometry(.12,2.36,.14),dframe,x,1.18,.05));
+const panel=new T.Mesh(new T.BoxGeometry(1.1,2.2,.06),mat(0x8f5a3b));panel.geometry.translate(-.55,0,0);panel.position.set(DOOR_X+.6,1.12,.05);panel.rotation.y=-1.25;panel.castShadow=true;scene.add(panel);
+// Striped awning
+const stripes=canvasTex(256,64,(g,w,h)=>{for(let i=0;i<8;i++){g.fillStyle=i%2?'#f4e5d5':'#ad512e';g.fillRect(i*w/8,0,w/8,h)}});
+const aw=new T.Group();aw.position.set(0,2.95,0);aw.rotation.x=.5;scene.add(aw);
+const awM=new T.MeshLambertMaterial({map:stripes,side:T.DoubleSide});
+const awTop=new T.Mesh(new T.PlaneGeometry(6.4,1.3),awM);awTop.rotation.x=-Math.PI/2;awTop.position.z=.65;awTop.castShadow=true;aw.add(awTop);
+const val=new T.Mesh(new T.BoxGeometry(6.4,.28,.03),awM);val.position.set(0,-.13,1.3);val.rotation.x=-.5;aw.add(val);
+// Chimney with steam
+mesh(new T.BoxGeometry(.5,.8,.5),mat(0x8f5a3b),2.5,4.1,-1.8);
+const puffTex=canvasTex(64,64,(g)=>{const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,.95)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64)});
+const puffs=[];for(let i=0;i<7;i++){const s=new T.Sprite(new T.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false}));s.userData.t=i/7;scene.add(s);puffs.push(s)}
+
+// Neighbouring buildings
+const winTex=c=>canvasTex(64,64,(g,w,h)=>{g.fillStyle=c;g.fillRect(0,0,w,h);g.fillStyle='#f8ead6';g.fillRect(16,14,32,34);g.fillStyle='rgba(120,80,50,.35)';g.fillRect(16,46,32,4);g.fillRect(31,14,2,34)});
+[[-17,4.4,5.6,'#d8b694'],[-12.4,4,4.6,'#e1c4a6'],[-7.6,4.2,6.2,'#cfae8f'],[7.6,4.2,5.4,'#e1c4a6'],[12.3,3.8,6.4,'#d8b694'],[16.8,4.6,4.8,'#e9d2b6']].forEach(([x,w,h,c])=>{
+ const t=winTex(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(Math.round(w/1.1),Math.round((h-1)/1.3));t.offset.y=-.15;
+ const front=new T.MeshLambertMaterial({map:t}),side=mat(new T.Color(c).getHex());
+ mesh(new T.BoxGeometry(w,h,4),[side,side,side,side,front,side],x,h/2,-2.4);
+ mesh(new T.BoxGeometry(w+.2,.2,4.2),mat(0x8f6f55),x,h+.1,-2.4)});
+
+// Street props
+[-4.6,4.6,-12,12].forEach(x=>{mesh(new T.CylinderGeometry(.06,.08,3.3,8),mat(0x3f342d),x,1.65,4);const l=mesh(new T.SphereGeometry(.22,12,8),new T.MeshBasicMaterial({color:0xffe6b0}),x,3.38,4,false)});
+[-9.6,9.6].forEach(x=>{mesh(new T.CylinderGeometry(.12,.16,1.4,8),mat(0x7a5a43),x,.7,3.7);const f=new T.Mesh(new T.IcosahedronGeometry(1,0),new T.MeshLambertMaterial({color:0x8da477,flatShading:true}));f.position.set(x,2.1,3.7);f.scale.set(1,1.15,1);f.castShadow=true;scene.add(f)});
+mesh(new T.BoxGeometry(1.6,.08,.5),mat(0x8f5a3b),-3.9,.5,.6);[-4.55,-3.25].forEach(x=>mesh(new T.BoxGeometry(.08,.5,.45),dark,x,.25,.6));
+// Sandwich board
+const board=canvasTex(96,128,(g,w,h)=>{g.fillStyle='#30251e';g.fillRect(0,0,w,h);g.fillStyle='#f7d9b6';g.font="700 26px 'Noto Serif TC',serif";g.textAlign='center';g.fillText('現煎',w/2,48);g.fillText('鍋貼',w/2,84)});
+const bd=mesh(new T.BoxGeometry(.55,.8,.06),[dark,dark,dark,dark,new T.MeshBasicMaterial({map:board}),dark],3.1,.4,.9);bd.rotation.x=-.12;
+
+// People
+const shirts=[0xad512e,0x30251e,0x5f7d6e,0xc98a4b,0x7b8fa6,0x9a5b70,0x4f6b8a,0xd4a24c,0xe8e0d4],pants=[0x3c3a44,0x5a4636,0x2f3b4f,0x6d6259],skins=[0xf1c9a5,0xe0ac85,0xc68a64,0xf6d8bc],hairs=[0x2b1d16,0x4a3427,0x1f1f1f,0x7a5333];
+const legG=new T.BoxGeometry(.17,.82,.19);legG.translate(0,-.41,0);
+const armG=new T.BoxGeometry(.11,.6,.12);armG.translate(0,-.28,0);
+const torsoG=new T.CylinderGeometry(.2,.25,.68,10),headG=new T.SphereGeometry(.16,14,10),hairG=new T.SphereGeometry(.172,14,8,0,Math.PI*2,0,Math.PI*.55),longG=new T.BoxGeometry(.3,.36,.1),bagG=new T.BoxGeometry(.24,.24,.12),logo=canvasTex(64,64,(g,w,h)=>{g.fillStyle='#f4e5d5';g.fillRect(0,0,w,h);g.fillStyle='#ad512e';g.font="700 40px 'Noto Serif TC',serif";g.textAlign='center';g.textBaseline='middle';g.fillText('金',32,35)});
+const bagM=new T.MeshLambertMaterial({map:logo});
+function person(){
+ const g=new T.Group(),body=new T.Group();g.add(body);
+ const sh=mat(pick(shirts)),pa=mat(pick(pants)),sk=mat(pick(skins)),ha=mat(pick(hairs));
+ const add=(geo,m,x,y,z,p=body)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;p.add(o);return o};
+ const legL=add(legG,pa,-.11,.86,0),legR=add(legG,pa,.11,.86,0);
+ add(torsoG,sh,0,1.22,0);
+ const armL=add(armG,sh,-.29,1.5,0),armR=add(armG,sh,.29,1.5,0);
+ add(headG,sk,0,1.74,0);add(hairG,ha,0,1.76,-.01);
+ if(Math.random()<.4)add(longG,ha,0,1.66,-.12);
+ const bag=Math.random()<.35;if(bag){const b=add(bagG,bagM,.02,-.66,0,armR);}
+ g.scale.setScalar(rand(.9,1.08));scene.add(g);
+ return{g,body,legL,legR,armL,armR,bag,phase:Math.random()*6};
+}
+function pose(p,dt,speed){
+ if(speed>0){p.phase+=dt*speed*5.4;const a=Math.sin(p.phase)*.55;p.legL.rotation.x=a;p.legR.rotation.x=-a;p.armL.rotation.x=-a*.8;p.armR.rotation.x=p.bag?a*.25:a*.8;p.body.position.y=Math.abs(Math.cos(p.phase))*.04}
+ else{p.legL.rotation.x=p.legR.rotation.x=p.armL.rotation.x=p.armR.rotation.x=0;p.body.position.y=0}
+}
+const W=19,people=[];
+function spawn(p,initial){
+ p.speed=rand(1,1.45);p.lane=rand(1,3.8);p.done=false;p.g.visible=true;
+ if(!initial&&Math.random()<.25){p.state='exit';p.x=DOOR_X+rand(-.2,.2);p.z=-.9;p.dir=Math.random()<.5?1:-1;p.g.rotation.y=0;return}
+ p.state='walk';p.dir=Math.random()<.5?1:-1;p.visitor=Math.random()<.3;
+ p.x=initial?rand(-W,W):-p.dir*W;p.z=p.lane;p.g.rotation.y=p.dir*Math.PI/2;
+ if(initial&&(p.x-DOOR_X)*p.dir>0)p.visitor=false;
+}
+function turnTo(p,target,dt){let d=target-p.g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));p.g.rotation.y+=d*Math.min(1,dt*7)}
+const N=small?9:16;
+for(let i=0;i<N;i++){const p=person();spawn(p,true);people.push(p)}
+// A window-shopper standing in front of the shop
+const idle=person();idle.g.position.set(-1.3,0,.75);idle.g.rotation.y=Math.PI;idle.state='idle';
+
+function update(dt,t){
+ people.forEach(p=>{
+  if(p.state==='walk'){
+   p.x+=p.dir*p.speed*dt;turnTo(p,p.dir*Math.PI/2,dt);
+   if(p.visitor&&Math.abs(p.x-DOOR_X)<.15){p.state='enter';p.x=DOOR_X}
+   if(Math.abs(p.x)>W+.5)spawn(p,false);
+  }else if(p.state==='enter'){
+   p.z-=p.speed*.85*dt;turnTo(p,Math.PI,dt);if(p.z<-.9)spawn(p,false);
+  }else if(p.state==='exit'){
+   p.z+=p.speed*.85*dt;turnTo(p,0,dt);if(p.z>=p.lane){p.state='walk';p.visitor=false}
+  }
+  p.g.position.set(p.x,0,p.z);pose(p,dt,p.state==='enter'||p.state==='exit'?p.speed*.85:p.speed);
+ });
+ idle.body.rotation.y=Math.sin(t*.4)*.25;
+ puffs.forEach(s=>{const k=(s.userData.t+t*.12)%1;s.position.set(2.5+Math.sin(k*5+s.userData.t*9)*.25+k*.6,4.6+k*2.2,-1.8);s.scale.setScalar(.35+k*1.1);s.material.opacity=Math.sin(k*Math.PI)*.75});
+ camera.position.x=Math.sin(t*.07)*1.6;camera.lookAt(0,2.1,0);
+}
+let dist=14;
+function resize(){
+ const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;
+ renderer.setSize(w,h,false);camera.aspect=w/h;
+ const fitW=camera.aspect<1.6?10.5:18,vh=fitW/camera.aspect;
+ dist=Math.min(30,Math.max(12.5,vh/2/Math.tan(T.MathUtils.degToRad(17.5))));
+ camera.position.set(camera.position.x,2.4+dist*.1,dist);camera.lookAt(0,2.1,0);camera.updateProjectionMatrix();
+}
+function render(){renderer.render(scene,camera)}
+addEventListener('resize',()=>{resize();if(reduce)render()});resize();
+
+const clock=new T.Clock();let visible=true,raf=0,t=0;
+function loop(){raf=0;if(!visible||document.hidden)return;const dt=Math.min(clock.getDelta(),.05);t+=dt;update(dt,t);render();raf=requestAnimationFrame(loop)}
+function start(){if(!raf){clock.getDelta();raf=requestAnimationFrame(loop)}}
+if(reduce){update(0,0);render();return}
+new IntersectionObserver(e=>{visible=e[0].isIntersecting;if(visible)start()}).observe(sec);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&visible)start()});
+start();
+})();
 </script></body></html>
 
