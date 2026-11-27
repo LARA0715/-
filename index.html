@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#faf6ee">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="金日煎餃"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="金黃酥脆的手工煎餃與鍋貼：線上點餐、冷凍禮盒、門市資訊與線上預約。">
 <title>金日煎餃 KIN — 每一口，都是剛剛好</title>
 <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
@@ -272,5 +273,8 @@ new IntersectionObserver(e=>{visible=e[0].isIntersecting;if(visible)start()}).ob
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&visible)start()});
 start();
 })();
+</script><script>
+// Register the service worker so the site installs as an app and works offline.
+if('serviceWorker' in navigator&&location.protocol!=='file:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script></body></html>
 
